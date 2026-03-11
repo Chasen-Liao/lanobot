@@ -55,3 +55,5 @@ config/*.json
 nanobot/
 
 rules/
+
+.claude/settings.local.json

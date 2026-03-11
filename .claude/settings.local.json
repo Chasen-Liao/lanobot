@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "mcp__docs-langchain__search_docs_by_lang_chain"
+      "mcp__docs-langchain__search_docs_by_lang_chain",
+      "Bash(uv run pytest:*)",
+      "Bash(uv run python:*)"
     ]
   }
 }
