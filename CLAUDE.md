@@ -4,7 +4,7 @@
 
 ## 项目概述
 
-Lanobot，使用 LangChain 1.x 重构的超轻量级个人AI助手。一定要参考nanobot的源码
+Lanobot，使用 LangChain 1.2 构建的超轻量级个人AI助手。一定要参考nanobot的源码，一定要使用Langchain 1.2
 
 ## 构建计划
 
