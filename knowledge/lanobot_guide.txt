@@ -1,0 +1,19 @@
+
+Lanobot 配置指南
+=================
+
+1. API Key 配置
+   在 config.json 中填写 siliconflow 的 API Key
+
+2. 支持的模型
+   - DeepSeek-V3.2 (默认)
+   - Qwen-2.5
+   - GLM-4
+
+3. 渠道配置
+   支持飞书、Telegram、QQ 等
+
+4. 工具系统
+   - 文件读写
+   - 命令执行
+   - Web 搜索

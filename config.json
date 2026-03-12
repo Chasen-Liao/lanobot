@@ -1,0 +1,18 @@
+{
+  "llm": {
+    "provider": "siliconflow",
+    "model": "Pro/deepseek-ai/DeepSeek-V3.2",
+    "api_key": "sk-wlyxwslviscdgdgsfqelmsyvhjbsjloxdvvoritvjnremboi",
+    "base_url": "https://api.siliconflow.cn/v1",
+    "temperature": 0.1,
+    "max_tokens": 4096
+  },
+  "channels": {
+    "feishu_enabled": false,
+    "feishu_app_id": "",
+    "feishu_app_secret": ""
+  },
+  "logging": {
+    "level": "INFO"
+  }
+}

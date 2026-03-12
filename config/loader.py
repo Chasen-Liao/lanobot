@@ -20,6 +20,10 @@ def get_config_path() -> Path:
     """获取配置文件路径"""
     if _current_config_path:
         return _current_config_path
+    # 优先使用项目根目录的 config.json
+    root_config = Path.cwd() / "config.json"
+    if root_config.exists():
+        return root_config
     return Path.home() / ".lanobot" / "config.json"
 
 
@@ -34,13 +38,20 @@ def load_config(config_path: Optional[Path] = None) -> AppConfig:
     """
     path = config_path or get_config_path()
 
+    print(f"[Config] 加载配置文件: {path}")
+
     if path.exists():
         try:
             with open(path, encoding="utf-8") as f:
                 data = json.load(f)
-            return AppConfig.model_validate(data)
-        except (json.JSONDecodeError, ValueError) as e:
+            print(f"[Config] 原始配置数据: {data}")
+            config = AppConfig.model_validate(data)
+            print(f"[Config] LLM 配置: {config.llm}")
+            return config
+        except Exception as e:
             print(f"警告: 加载配置失败 {path}: {e}")
+            import traceback
+            traceback.print_exc()
             print("使用默认配置")
 
     return AppConfig()

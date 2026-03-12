@@ -42,6 +42,60 @@ class LoggingConfig(Base):
     file: Optional[str] = None
 
 
+class ChannelsConfig(Base):
+    """聊天通道配置"""
+    # 飞书/Lark
+    feishu_enabled: bool = False
+    feishu_app_id: str = ""
+    feishu_app_secret: str = ""
+    feishu_encrypt_key: str = ""
+    feishu_verification_token: str = ""
+    feishu_allow_from: list[str] = Field(default_factory=list)
+    feishu_react_emoji: str = "THUMBSUP"
+
+    # QQ
+    qq_enabled: bool = False
+    qq_app_id: str = ""
+    qq_secret: str = ""
+    qq_allow_from: list[str] = Field(default_factory=list)
+
+    # Telegram
+    telegram_enabled: bool = False
+    telegram_bot_token: str = ""
+    telegram_allow_from: list[str] = Field(default_factory=list)
+
+    # Slack
+    slack_enabled: bool = False
+    slack_bot_token: str = ""
+    slack_app_token: str = ""  # Socket Mode 需要
+    slack_signing_secret: str = ""
+    slack_allow_from: list[str] = Field(default_factory=list)
+
+    # Discord
+    discord_enabled: bool = False
+    discord_bot_token: str = ""
+    discord_allow_from: list[str] = Field(default_factory=list)
+
+    # 钉钉
+    dingtalk_enabled: bool = False
+    dingtalk_app_key: str = ""
+    dingtalk_app_secret: str = ""
+    dingtalk_allow_from: list[str] = Field(default_factory=list)
+
+    # 企业微信
+    wecom_enabled: bool = False
+    wecom_corp_id: str = ""
+    wecom_corp_secret: str = ""
+    wecom_agent_id: str = ""
+    wecom_allow_from: list[str] = Field(default_factory=list)
+
+    # WhatsApp (通过第三方 bridge 如 botigram/whatsapp-bot)
+    whatsapp_enabled: bool = False
+    whatsapp_webhook_url: str = ""  # WhatsApp webhook URL
+    whatsapp_verify_token: str = ""
+    whatsapp_allow_from: list[str] = Field(default_factory=list)
+
+
 class AppConfig(BaseSettings):
     """应用配置"""
     version: str = "0.1.0"
@@ -50,6 +104,7 @@ class AppConfig(BaseSettings):
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     message_bus: MessageBusConfig = Field(default_factory=MessageBusConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
+    channels: ChannelsConfig = Field(default_factory=ChannelsConfig)
 
     model_config = ConfigDict(
         env_prefix="LANOBOT_",

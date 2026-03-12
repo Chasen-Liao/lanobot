@@ -1,5 +1,5 @@
 """配置模块"""
-from config.schema import AppConfig
+from config.schema import AppConfig, ChannelsConfig
 from config.loader import load_config, get_config_path, set_config_path
 from config.paths import (
     get_data_dir,
@@ -11,6 +11,7 @@ from config.paths import (
 
 __all__ = [
     "AppConfig",
+    "ChannelsConfig",
     "load_config",
     "get_config_path",
     "set_config_path",

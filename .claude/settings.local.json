@@ -3,7 +3,12 @@
     "allow": [
       "mcp__docs-langchain__search_docs_by_lang_chain",
       "Bash(uv run pytest:*)",
-      "Bash(uv run python:*)"
+      "Bash(uv run python:*)",
+      "Bash(cd \"E:/MyProjects/Agent_Projects/lanobot\" && uv pip install -e . --force-reinstall)",
+      "Bash(cd \"E:/MyProjects/Agent_Projects/lanobot\" && uv pip show lanobot)",
+      "Bash(cd \"E:/MyProjects/Agent_Projects/lanobot/tests/test_providers\" && rm -f __init__.py)",
+      "Bash(cd \"E:\\\\MyProjects\\\\Agent_Projects\\\\lanobot\" && uv run lanobot run agent 2>&1)",
+      "Bash(cd \"E:\\\\MyProjects\\\\Agent_Projects\\\\lanobot\" && uv run lanobot run agent 2>&1 | head -30)"
     ]
   }
 }
