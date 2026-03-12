@@ -85,9 +85,14 @@ def create_router_node(router: Optional[ModelRouter] = None):
 
 # ============== LLM 调用节点 ==============
 
+# 支持的工具类型
+ToolType = Any
+
+
 def create_llm_node(
     default_model: BaseChatModel,
     system_prompt: Optional[str] = None,
+    tools: Optional[list[ToolType]] = None,
 ):
     """创建 LLM 调用节点.
 
@@ -135,8 +140,12 @@ def create_llm_node(
         else:
             final_messages = list(messages)
 
-        # 调用模型
-        response = await model.ainvoke(final_messages)
+        # 如果有工具，绑定工具到模型
+        if tools:
+            model_with_tools = model.bind_tools(tools)
+            response = await model_with_tools.ainvoke(final_messages)
+        else:
+            response = await model.ainvoke(final_messages)
 
         # 返回新消息（会被 add_messages 合并）
         return {"messages": [response]}

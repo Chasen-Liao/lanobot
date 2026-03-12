@@ -8,7 +8,8 @@
       "Bash(cd \"E:/MyProjects/Agent_Projects/lanobot\" && uv pip show lanobot)",
       "Bash(cd \"E:/MyProjects/Agent_Projects/lanobot/tests/test_providers\" && rm -f __init__.py)",
       "Bash(cd \"E:\\\\MyProjects\\\\Agent_Projects\\\\lanobot\" && uv run lanobot run agent 2>&1)",
-      "Bash(cd \"E:\\\\MyProjects\\\\Agent_Projects\\\\lanobot\" && uv run lanobot run agent 2>&1 | head -30)"
+      "Bash(cd \"E:\\\\MyProjects\\\\Agent_Projects\\\\lanobot\" && uv run lanobot run agent 2>&1 | head -30)",
+      "Bash(timeout 5 uv run lanobot run agent 2>&1 || true)"
     ]
   }
 }

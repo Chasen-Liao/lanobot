@@ -4,6 +4,8 @@ import logging
 from typing import TYPE_CHECKING, Any, Optional
 
 from bus.channels.base import BaseChannel
+from bus.events import InboundMessage, OutboundMessage
+from langchain_core.messages import HumanMessage, AIMessage
 from bus.channels.feishu import FeishuChannel, FeishuConfig
 from bus.channels.qq import QQChannel, QQConfig
 from bus.channels.telegram import TelegramChannel, TelegramConfig
@@ -217,8 +219,10 @@ class ChannelManager:
         await asyncio.gather(*start_tasks, return_exceptions=True)
 
         # 启动消息处理循环
-        if self.agent:
-            asyncio.create_task(self._message_loop())
+        # 入站循环：消费用户消息 -> 调用 Agent -> 发布响应
+        asyncio.create_task(self._inbound_loop())
+        # 出站循环：消费 Agent 响应 -> 发送到渠道
+        asyncio.create_task(self._message_loop())
 
         logger.info(f"已启动 {len(self._channels)} 个渠道")
 
@@ -239,14 +243,101 @@ class ChannelManager:
         self._channels.clear()
         logger.info("已停止所有渠道")
 
-    async def _message_loop(self) -> None:
-        """消息处理循环：从入站队列获取消息，调用 Agent，将响应发送到出站队列"""
+    async def _inbound_loop(self) -> None:
+        """入站消息处理循环：从入站队列获取消息，调用 Agent，处理响应"""
         if not self.agent:
+            logger.warning("Agent 未设置，跳过入站消息处理")
             return
 
         while self._running:
             try:
-                # 获取出站消息（Agent 响应）
+                # 消费入站消息（用户发送的消息）
+                inbound_msg = await self.bus.consume_inbound()
+                session_key = inbound_msg.session_key
+
+                logger.debug(f"收到消息 from {session_key}: {inbound_msg.content[:50]}...")
+
+                # 1. 加载会话历史（如果使用 SessionManager）
+                messages = []
+                if self.session_manager:
+                    session = self.session_manager.get_or_create(session_key)
+                    # 将历史消息转换为 LangChain 格式
+                    # session.messages 是 list[dict] 而不是对象列表
+                    for msg_dict in session.messages:
+                        role = msg_dict.get("role", "user")
+                        content = msg_dict.get("content", "")
+                        if role == "user":
+                            messages.append(HumanMessage(content=content))
+                        elif role == "assistant":
+                            messages.append(AIMessage(content=content))
+
+                # 2. 调用 Agent 处理消息
+                # 使用 session_key 作为 thread_id 实现会话隔离
+                thread_id = f"channel-{session_key}"
+
+                # 将新消息添加到列表
+                if messages:
+                    # 有历史消息，追加新消息，使用新方法
+                    all_messages = messages + [HumanMessage(content=inbound_msg.content)]
+                    result = await self.agent.ainvoke_with_history(all_messages, thread_id)
+                else:
+                    # 无历史消息，直接传入新消息
+                    result = await self.agent.ainvoke(inbound_msg.content, thread_id)
+                    # 包装结果以保持一致的处理逻辑
+                    result = {"messages": result.get("messages", [])}
+
+                # 3. 获取 Agent 回复
+                response_messages = result.get("messages", [])
+                agent_response = ""
+                if response_messages:
+                    # 最后一个消息是 Agent 的回复
+                    last_msg = response_messages[-1]
+                    if hasattr(last_msg, "content"):
+                        agent_response = last_msg.content
+                    else:
+                        agent_response = str(last_msg)
+
+                # 4. 保存会话历史到 SessionManager
+                if self.session_manager:
+                    session = self.session_manager.get_or_create(session_key)
+                    session.add_message("user", inbound_msg.content)
+                    if agent_response:
+                        session.add_message("assistant", agent_response)
+                    self.session_manager.save(session)
+
+                # 5. 发布响应到出站队列
+                if agent_response:
+                    outbound_msg = OutboundMessage(
+                        channel=inbound_msg.channel,
+                        chat_id=inbound_msg.chat_id,
+                        content=agent_response,
+                    )
+                    await self.bus.publish_outbound(outbound_msg)
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"入站消息处理错误: {e}", exc_info=True)
+                # 发送错误消息给用户（如果能获取入站消息）
+                try:
+                    error_msg = OutboundMessage(
+                        channel=inbound_msg.channel,
+                        chat_id=inbound_msg.chat_id,
+                        content=f"抱歉，处理您的消息时发生错误: {str(e)[:100]}",
+                    )
+                    await self.bus.publish_outbound(error_msg)
+                except Exception:
+                    pass  # 避免错误消息发送也失败导致循环中断
+
+    async def _message_loop(self) -> None:
+        """出站消息处理循环：从出站队列获取消息，发送到对应渠道"""
+        if not self.agent:
+            # 即使没有 Agent，也处理出站消息（比如系统通知）
+            pass
+
+        while self._running:
+            try:
+                # 获取出站消息（Agent 响应或系统通知）
                 msg = await self.bus.consume_outbound()
 
                 # 获取对应渠道
@@ -261,7 +352,7 @@ class ChannelManager:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"消息处理错误: {e}")
+                logger.error(f"出站消息处理错误: {e}")
 
     def get_channel(self, name: str) -> Optional[BaseChannel]:
         """获取指定渠道"""

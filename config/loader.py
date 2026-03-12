@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 from typing import Optional
 
+from loguru import logger
+
 from config.schema import AppConfig
 
 
@@ -38,21 +40,21 @@ def load_config(config_path: Optional[Path] = None) -> AppConfig:
     """
     path = config_path or get_config_path()
 
-    print(f"[Config] 加载配置文件: {path}")
+    logger.debug(f"加载配置文件: {path}")
 
     if path.exists():
         try:
             with open(path, encoding="utf-8") as f:
                 data = json.load(f)
-            print(f"[Config] 原始配置数据: {data}")
+            logger.debug(f"原始配置数据: {data}")
             config = AppConfig.model_validate(data)
-            print(f"[Config] LLM 配置: {config.llm}")
+            logger.debug(f"LLM 配置: {config.llm}")
             return config
         except Exception as e:
-            print(f"警告: 加载配置失败 {path}: {e}")
+            logger.warning(f"加载配置失败 {path}: {e}")
             import traceback
             traceback.print_exc()
-            print("使用默认配置")
+            logger.info("使用默认配置")
 
     return AppConfig()
 

@@ -130,7 +130,7 @@ class AgentGraph:
 
         self._system_prompt = system_prompt
 
-        # 初始化 checkpointer
+        # 初始化 checkpointer（允许 None 来禁用状态持久化）
         if checkpointer is not None:
             self._checkpointer = checkpointer
         elif checkpointer_backend == "postgres":
@@ -138,8 +138,10 @@ class AgentGraph:
                 "postgres",
                 conn_string=checkpointer_conn_string,
             )
-        else:
+        elif checkpointer_backend == "memory":
             self._checkpointer = MemorySaver()
+        else:
+            self._checkpointer = None  # 禁用 checkpointer
 
         # 初始化 store（长期记忆）
         if store is not None:
@@ -190,7 +192,7 @@ class AgentGraph:
             )
 
         # 3. LLM 调用节点（异步）
-        llm_fn = create_llm_node(self._model, self._system_prompt)
+        llm_fn = create_llm_node(self._model, self._system_prompt, self._tools)
         workflow.add_node("llm", llm_fn)
 
         # 4. 工具执行节点
@@ -228,7 +230,9 @@ class AgentGraph:
             workflow.add_edge("llm", END)
 
         # 编译图（支持 Store 长期记忆注入）
-        compile_kwargs = {"checkpointer": self._checkpointer}
+        compile_kwargs = {}
+        if self._checkpointer is not None:
+            compile_kwargs["checkpointer"] = self._checkpointer
         if self._store and self._store.store:
             compile_kwargs["store"] = self._store.store
 
@@ -270,9 +274,13 @@ class AgentGraph:
             LangGraph 配置字典
         """
         config = {
-            "configurable": {"thread_id": thread_id},
             "recursion_limit": kwargs.get("recursion_limit", 15),
         }
+
+        # 只在有 checkpointer 时才设置 thread_id
+        if self._checkpointer is not None:
+            config["configurable"] = {"thread_id": thread_id}
+
         if kwargs:
             config.update(kwargs)
         return config
@@ -310,7 +318,7 @@ class AgentGraph:
         """异步调用 Agent.
 
         Args:
-            message: 用户消息
+            message: 用户消息（字符串）
             thread_id: 会话线程ID，用于状态持久化
             recursion_limit: 最大迭代次数，防止无限循环
 
@@ -320,6 +328,43 @@ class AgentGraph:
         config = self.get_config(thread_id, recursion_limit=recursion_limit)
         return await self._graph.ainvoke(
             {"messages": [{"role": "user", "content": message}]},
+            config=config,
+        )
+
+    async def ainvoke_with_history(
+        self,
+        messages: list,
+        thread_id: str,
+        *,
+        recursion_limit: int = 15,
+    ) -> dict[str, Any]:
+        """异步调用 Agent（带完整消息历史）.
+
+        Args:
+            messages: 消息列表（LangChain BaseMessage 或 dict）
+            thread_id: 会话线程ID，用于状态持久化
+            recursion_limit: 最大迭代次数，防止无限循环
+
+        Returns:
+            包含 messages 的字典
+        """
+        from langchain_core.messages import HumanMessage
+
+        # 确保消息格式正确
+        formatted_messages = []
+        for msg in messages:
+            if isinstance(msg, dict):
+                formatted_messages.append(msg)
+            elif hasattr(msg, "content"):
+                # LangChain 消息对象
+                formatted_messages.append(msg)
+            else:
+                # 转换为 HumanMessage
+                formatted_messages.append({"role": "user", "content": str(msg)})
+
+        config = self.get_config(thread_id, recursion_limit=recursion_limit)
+        return await self._graph.ainvoke(
+            {"messages": formatted_messages},
             config=config,
         )
 

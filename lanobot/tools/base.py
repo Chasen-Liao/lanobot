@@ -183,9 +183,36 @@ class Tool(ABC):
     def to_langchain_tool(self) -> Any:
         """Convert to LangChain tool format (BaseTool).
 
-        Uses the simple approach with StructuredTool.from_function.
+        Uses StructuredTool.from_function with dynamic args schema.
         """
         from langchain_core.tools import StructuredTool
+        from pydantic import BaseModel, Field, create_model
+
+        # 创建动态 Pydantic 模型
+        schema = self.parameters or {}
+        props = schema.get("properties", {})
+        required = schema.get("required", [])
+
+        # 构建字段定义 (field_name=(type, default/Field))
+        field_definitions = {}
+        for name, prop in props.items():
+            field_definitions[name] = (
+                str,  # type
+                Field(description=prop.get("description", "")),  # default/Field
+            )
+
+        # 使用 create_model 创建动态模型
+        ToolParams = None
+        if field_definitions:
+            ToolParams = create_model(
+                "ToolParams",
+                **field_definitions,
+            )
+            # 设置必填字段（通过 model_fields）
+            if required:
+                for name in required:
+                    if name in ToolParams.model_fields:
+                        ToolParams.model_fields[name].is_required()
 
         async def async_execute(**kwargs) -> str:
             return await self.execute(**kwargs)
@@ -194,11 +221,11 @@ class Tool(ABC):
             import asyncio
             return asyncio.run(self.execute(**kwargs))
 
-        # Use async version if available, fall back to sync
+        # 使用动态模型作为 args_schema
         return StructuredTool.from_function(
             name=self.name,
             description=self.description,
-            args_schema=None,  # Will use the parameters dict directly
+            args_schema=ToolParams,
             func=sync_execute,
             coroutine=async_execute,
         )
