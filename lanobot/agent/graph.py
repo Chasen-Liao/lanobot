@@ -274,7 +274,7 @@ class AgentGraph:
             LangGraph 配置字典
         """
         config = {
-            "recursion_limit": kwargs.get("recursion_limit", 15),
+            "recursion_limit": kwargs.get("recursion_limit", 50),
         }
 
         # 只在有 checkpointer 时才设置 thread_id
@@ -290,7 +290,7 @@ class AgentGraph:
         message: str,
         thread_id: str,
         *,
-        recursion_limit: int = 15,
+        recursion_limit: int = 50,
     ) -> dict[str, Any]:
         """同步调用 Agent.
 
@@ -313,7 +313,7 @@ class AgentGraph:
         message: str,
         thread_id: str,
         *,
-        recursion_limit: int = 15,
+        recursion_limit: int = 50,
     ) -> dict[str, Any]:
         """异步调用 Agent.
 
@@ -336,7 +336,7 @@ class AgentGraph:
         messages: list,
         thread_id: str,
         *,
-        recursion_limit: int = 15,
+        recursion_limit: int = 50,
     ) -> dict[str, Any]:
         """异步调用 Agent（带完整消息历史）.
 
@@ -373,7 +373,7 @@ class AgentGraph:
         message: str,
         thread_id: str,
         *,
-        recursion_limit: int = 15,
+        recursion_limit: int = 50,
     ) -> AsyncIterator[dict[str, Any]]:
         """流式响应.
 
@@ -396,7 +396,7 @@ class AgentGraph:
         message: str,
         thread_id: str,
         *,
-        recursion_limit: int = 15,
+        recursion_limit: int = 50,
     ) -> AsyncIterator[dict[str, Any]]:
         """异步流式响应.
 

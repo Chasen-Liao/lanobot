@@ -1,0 +1,4 @@
+Lanobot 是一个超轻量级 AI 助手。
+它基于 LangChain 1.2 框架开发。
+支持 RAG 知识检索、多模型路由等功能。
+可以连接飞书、QQ、Telegram 等多个渠道。

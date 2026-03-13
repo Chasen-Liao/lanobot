@@ -441,16 +441,33 @@ async def run_agent() -> None:
             logger.setLevel(logging.ERROR)
 
             try:
-                result = await app.agent.ainvoke(user_input, thread_id)
-
-                # 获取 Agent 的回复
-                messages = result.get("messages", [])
-                if messages:
-                    # 最后一个消息是 Agent 的回复，清理无效字符
-                    response = _clean_message(messages[-1])
-                    _safe_print(response)
-                else:
-                    print("(无回复)")
+                # 使用 astream_events 实现真正的流式输出
+                async for event in app.agent.graph.astream_events(
+                    {"messages": [{"role": "user", "content": user_input}]},
+                    config=app.agent.get_config(thread_id),
+                    version="v2",
+                ):
+                    kind = event.get("event")
+                    
+                    # 处理 LLM 的流式 token 输出
+                    if kind == "on_chat_model_stream":
+                        chunk = event.get("data", {}).get("chunk")
+                        if chunk and hasattr(chunk, "content"):
+                            content = chunk.content
+                            if content:
+                                print(content, end="", flush=True)
+                    
+                    # 工具调用开始
+                    elif kind == "on_tool_start":
+                        tool_name = event.get("name", "unknown")
+                        print(f"\n[调用工具: {tool_name}]", flush=True)
+                    
+                    # 工具调用结束
+                    elif kind == "on_tool_end":
+                        print("[工具完成]", flush=True)
+                
+                # 确保最后有换行
+                print()
             except UnicodeEncodeError as e:
                 # 如果仍然出现编码错误，尝试显示部分内容
                 print(f"[部分响应] ... (编码错误: {e})")
