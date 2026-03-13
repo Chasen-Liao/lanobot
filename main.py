@@ -406,6 +406,8 @@ def _clean_message(message) -> str:
 
 async def run_agent() -> None:
     """运行 Agent 核心（不含渠道）"""
+    from lanobot.cli.repl import InteractiveREPL
+
     app = Lanobot(mode="agent")
     await app.setup()
 
@@ -413,82 +415,18 @@ async def run_agent() -> None:
         print("[错误] Agent 未正确初始化")
         return
 
-    # 启动信息简洁显示
-    print(f"Lanobot v{app.config.version} - 输入消息开始对话，输入 quit 退出")
+    # 使用新的美化 REPL
+    repl = InteractiveREPL(
+        agent=app.agent,
+        session_manager=app.session_manager,
+        config=app.config,
+    )
 
-    # REPL 交互式对话
-    # 每次调用都使用新的 thread_id，避免状态序列化问题
-    while True:
-        try:
-            user_input = input("你> ").strip()
-
-            if not user_input:
-                continue
-
-            if user_input.lower() in ("quit", "exit", "q"):
-                print("再见!")
-                break
-
-            # 调用 Agent（每次创建新的 thread_id）
-            import uuid
-            thread_id = f"cli-{uuid.uuid4().hex[:8]}"
-            print("Agent> ", end="", flush=True)
-
-            # 临时抑制 LangGraph 的警告
-            import logging
-            logger = logging.getLogger("langgraph")
-            old_level = logger.level
-            logger.setLevel(logging.ERROR)
-
-            try:
-                # 使用 astream_events 实现真正的流式输出
-                async for event in app.agent.graph.astream_events(
-                    {"messages": [{"role": "user", "content": user_input}]},
-                    config=app.agent.get_config(thread_id),
-                    version="v2",
-                ):
-                    kind = event.get("event")
-                    
-                    # 处理 LLM 的流式 token 输出
-                    if kind == "on_chat_model_stream":
-                        chunk = event.get("data", {}).get("chunk")
-                        if chunk and hasattr(chunk, "content"):
-                            content = chunk.content
-                            if content:
-                                print(content, end="", flush=True)
-                    
-                    # 工具调用开始
-                    elif kind == "on_tool_start":
-                        tool_name = event.get("name", "unknown")
-                        print(f"\n[调用工具: {tool_name}]", flush=True)
-                    
-                    # 工具调用结束
-                    elif kind == "on_tool_end":
-                        print("[工具完成]", flush=True)
-                
-                # 确保最后有换行
-                print()
-            except UnicodeEncodeError as e:
-                # 如果仍然出现编码错误，尝试显示部分内容
-                print(f"[部分响应] ... (编码错误: {e})")
-            except Exception as e:
-                error_msg = str(e)
-                # 简化常见错误信息
-                if "Deserializing" in error_msg:
-                    print("[错误] 会话状态冲突，请重试")
-                else:
-                    print(f"[错误] {error_msg}")
-            finally:
-                logger.setLevel(old_level)
-
-        except KeyboardInterrupt:
-            print("\n再见!")
-            break
-        except EOFError:
-            break
-
-    # 清理
-    await app.stop()
+    try:
+        await repl.run()
+    finally:
+        # 清理
+        await app.stop()
 
 
 async def run_gateway() -> None:
